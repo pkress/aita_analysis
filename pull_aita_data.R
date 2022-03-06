@@ -1,16 +1,14 @@
 ##################-
 ### Author: Peter Kress
-### Date: 
-### Purpose: 
+### Date: 2022/03/06
+### Purpose: Pull AITA comments and replies for aita posts
 ##################-
 
 ##################-
 # Initialize Workspace ----
 ##################-
 ## Paths ----
-setwd(dirname(rstudioapi::getActiveDocumentContext()[["path"]]))
-setwd("..")
-
+setwd("~/Documents/Personal Projects/AITA/")
 
 ## Packages ----
 
@@ -38,6 +36,13 @@ aita = fread("data/raw/aita_clean.csv")
 # Functions to Pull from Reddit JSON ----
 ##################-
 
+#' Pull data from a reddit post
+#' 
+#' @param page url to reddit post with .json suffix
+#' @return list with post data, top comments data, additional comments data, top replies for each comment, and additional replies for each comment.
+#' @examples
+#' page = "https://www.reddit.com/r/AmItheAsshole/comments/e5k3z2.json"
+#' page_data = get_page_data(page)
 get_page_data = function(page){
   
   pagedata = RJSONIO::fromJSON(page)
@@ -83,6 +88,15 @@ get_page_data = function(page){
 }
 
 
+#' Retrieve replies to a reddit comment
+#' 
+#' @param comment Comment for which replies are desired
+#' @return list with the replies and data as well as hidden "more" replies
+#' @examples
+#' page = "https://www.reddit.com/r/AmItheAsshole/comments/e5k3z2.json"
+#' pagedata = RJSONIO::fromJSON(page)
+#' comment = pagedata[[2]][["data"]][["children"]][[1]]
+#' replies = get_replies(comment)
 get_replies = function(comment){
   out = lapply(comment$data$replies$data$children, get_non_repl_data)
   main_data = lapply(out[unlist(lapply(out, `[[`, "type"))=="main"], `[[`, "data") %>% 
@@ -94,6 +108,15 @@ get_replies = function(comment){
   return(list(data = main_data, other = other_data))
 }
 
+#' Retrieve non reply (comment level) data for a comment
+#' 
+#' @param comment Comment for which replies are desired
+#' @return list w/ comment level data and a type indicator for "see more" comments
+#' @examples
+#' page = "https://www.reddit.com/r/AmItheAsshole/comments/e5k3z2.json"
+#' pagedata = RJSONIO::fromJSON(page)
+#' comment = pagedata[[2]][["data"]][["children"]][[1]]
+#' comment_data =  get_non_repl_data(comment)
 get_non_repl_data = function(comment){
   ### Needed to keep from list-columns
   dropcols = c("all_awardings", "gildings", "link_flair_richtext", "media_embed"
@@ -105,6 +128,16 @@ get_non_repl_data = function(comment){
   return(list(data = out, type = type))
 }
 
+#' Get data for "see more" type comments, deleting full post text to save memory
+#' 
+#' @param page Page of direct link to a comment on a post, or reply to a comment.
+#' @return page data, with post data excluding full text
+#' @examples
+#' page = "https://www.reddit.com/r/AmItheAsshole/comments/e5k3z2.json"
+#' pagedata = RJSONIO::fromJSON(page)
+#' comment = pagedata[[2]][["data"]][["children"]][[1]]
+#' comment_page = paste0(comment$permalink, ".json")
+#' comment_page_data =  get_extra_data(comment_page)
 get_extra_data = function(page){
   out = get_page_data(page)
   ### Delete full chars text to save memory
@@ -112,6 +145,18 @@ get_extra_data = function(page){
   return(out)
 }
 
+#' Pull all comment level and reply inforamtion for a list of comment pages
+#' 
+#' @param commentlist list of comment ids to pull data from
+#' @param url url of reddit post where comment ids were pulled from 
+#' @return comments, replies, and "see more" replies for all comments in the list.
+#' @examples
+#' page = "https://www.reddit.com/r/AmItheAsshole/comments/e5k3z2.json"
+#' pagedata = RJSONIO::fromJSON(page)
+#' comments = pagedata[[2]][["data"]][["children"]]
+#' commentlist = lapply(comments, `[[`, "id") %>% unlist()
+#' url = pagedata[[1]][["data"]][["children"]][[1]]$url
+#' comment_data = get_comments(commentlist, url)
 get_comments = function(commentlist, url){
   out = lapply(commentlist, \(x, url){
     extras = get_extra_data(url%p%x%p%".json")
@@ -132,6 +177,15 @@ get_comments = function(commentlist, url){
               , replies_more = replies_more))
 }
 
+#' pull post and comment level info for top comments from a list of reddit posts
+#' 
+#' @param page reddit post page to pull data from
+#' @param max_comments number of comments to retrieve for each post.
+#' @return post data and top comments data, including count of replies for the comments. 
+#' @examples
+#' page = "https://www.reddit.com/r/AmItheAsshole/comments/e5k3z2.json"
+#' max_comments = 50
+#' page_post_and_comments = get_post_and_comments(page, max_comments)
 get_post_and_comments = function(page, max_comments){
   cat("\n\n"%p%page)
   page_data = get_page_data(page)
@@ -193,8 +247,6 @@ top_posts = aita[order(-score), id][1:50]
 highest_comment_posts = aita[order(-num_comments), id][1:20]
 
 top_post_pages = "https://www.reddit.com/r/AmItheAsshole/comments/"%p%top_posts%p%".json"
-highest_comment_pages = "https://www.reddit.com/r/AmItheAsshole/comments/"%p%highest_comment_posts%p%".json"
-
 
 max_comments = 50
 
