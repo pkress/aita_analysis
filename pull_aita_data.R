@@ -205,7 +205,8 @@ get_post_and_comments = function(page, max_comments){
   
   ## Add extra comments
   if(nrow(page_data$comments_more)>0) {
-    extra_comments = get_comments(page_data$comments_more[1:min(c(max_comments,.N)),children], page_data$post$url)
+    extra_comments = get_comments(page_data$comments_more[1:min(c(max_comments,.N)),children]
+                                  , URLencode(page_data$post$url))
     
     ex_reply_counts = NULL
     ex_extra_reply_counts = NULL
@@ -243,19 +244,26 @@ get_post_and_comments = function(page, max_comments){
 # Pull comments and data for top posts ----
 ##################-
 
-top_posts = aita[order(-score), id][1:50]
-highest_comment_posts = aita[order(-num_comments), id][1:20]
+pull_data_by_rank = function(pull_ranks, max_comments, data = aita){
+  top_posts = data[order(-score), id][pull_ranks]
+  
+  top_post_pages = "https://www.reddit.com/r/AmItheAsshole/comments/"%p%top_posts%p%".json"
+  
+  top_post_info = lapply(top_post_pages, get_post_and_comments
+                         , max_comments = max_comments)
+  
+  top_posts = lapply(top_post_info, `[[`, "post") %>% 
+    rbindlist(fill = T)
+  top_post_comments = lapply(top_post_info, `[[`, "comments") %>% 
+    rbindlist(fill = T)
+  fwrite(top_posts, "data/intermediate/top_"%p%min(pull_ranks)%p%"_"%p%max(pull_ranks)%p%"_posts.csv")
+  fwrite(top_post_comments, "data/intermediate/top_"%p%min(pull_ranks)%p%"_"%p%max(pull_ranks)%p%"_posts_top_"%p%max_comments%p%"_comments.csv")
+  
+  
+}
 
-top_post_pages = "https://www.reddit.com/r/AmItheAsshole/comments/"%p%top_posts%p%".json"
-
+pull_ranks = 151:250
+# pull_ranks = 1
 max_comments = 50
+pull_data_by_rank(pull_ranks, max_comments)
 
-top_post_info = lapply(top_post_pages, get_post_and_comments
-                       , max_comments = max_comments)
-
-top_posts = lapply(top_post_info, `[[`, "post") %>% 
-  rbindlist(fill = T)
-top_post_comments = lapply(top_post_info, `[[`, "comments") %>% 
-  rbindlist(fill = T)
-fwrite(top_posts, "data/intermediate/top_50_posts.csv")
-fwrite(top_post_comments, "data/intermediate/top_50_posts_top_50_comments.csv")
