@@ -262,8 +262,7 @@ pull_data_by_rank = function(pull_ranks, max_comments, data = aita){
   
 }
 
-pull_ranks = 151:250
-# pull_ranks = 1
+pull_ranks = 1:250
 max_comments = 50
 pull_data_by_rank(pull_ranks, max_comments)
 
