@@ -6,4 +6,4 @@ Examine posting and commenting behavior in r/AITA
 - scraped reddit data for posts in aita_dataset
 
 ## Initial Analysis
-- Consider text and behavior for top 50 comments from top 250 posts based on aita_dataset of top posts. 
+- Consider text and behavior for top comments and their replies from top 250 posts based on aita_dataset of top posts. 
