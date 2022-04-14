@@ -262,7 +262,7 @@ pull_data_by_rank = function(pull_ranks, max_comments, data = aita){
   
 }
 
-pull_ranks = 1:250
-max_comments = 50
-pull_data_by_rank(pull_ranks, max_comments)
+pull_ranks = 1:300 ## which posts to pull, ordered by votes
+max_comments = 50 ## Number of additional comments to pull after top comments
+pull_data_by_rank(pull_ranks, max_comments) ## Pull and save data
 
