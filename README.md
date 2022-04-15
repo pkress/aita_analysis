@@ -2,7 +2,7 @@
 Examine posting and commenting behavior in r/AITA
 
 ## Main data sources: 
-Data are sourced from pulling data from reddit for posts in the public aita dataset here: https://github.com/iterative/aita_dataset. 
+Data are sourced from pulling data from reddit for posts in the public aita dataset [here](https://github.com/iterative/aita_dataset)
 The data creation is performed in pull_aita_data.R
 
 
