@@ -9,4 +9,4 @@ The data creation is performed in pull_aita_data.R
 
 ## Initial Analysis
 
-Initial Analyses are performed in analyze_comments.R and discussed in analyze_comments.pdf (https://github.com/pkress/aita_stereotypes_analysis/blob/main/analyze_comments.pdf)
+Initial Analyses are performed in analyze_comments.R and discussed in [analyze_comments.pdf](https://github.com/pkress/aita_stereotypes_analysis/blob/main/analyze_comments.pdf)
