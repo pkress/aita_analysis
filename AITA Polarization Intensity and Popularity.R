@@ -24,13 +24,18 @@
 #' to clarify those sticky situations where we aren't quiiite sure if
 #' we're being an A-hole.
 #' 
-#' The analysis is comprised of three main steps: 
-#' 
-#' * Determining basic descriptive facts about the top posts
+#' The analysis is comprised of two main steps: 
 #' 
 #' * Determining if more intense and balanced posts are more popular
 #' 
 #' * Determining if more polarizing posts more popular
+#' 
+#' We also determine basic descriptive facts about the top posts, which were 
+#' used to inform the data cleaning process. 
+#' 
+
+#' 
+
 #' 
 #' This analysis is largely inconclusive and more rigorous analysis is neccesary
 #' to fully unpack the role of polarization in determining post popularity.
@@ -214,258 +219,6 @@ comment_cln = fread("~/Documents/Personal Projects/AITA/data/intermediate/commen
 top_posts = fread("~/Documents/Personal Projects/AITA/data/intermediate/merged_comments_and_posts_cln.csv")
 
 ##################)
-# Basic Descriptive Facts ----
-##################)
-
-#' # Basic Descriptive Facts
-#' 
-#' We want to explore the overall distributions of the key variables in this 
-#' analysis, and confirm that the data adhere to our expectations. We focus this
-#' analysis on comments/replies, score, intensity, and balance. 
-#' 
-#' * Comments/replies refers to the number of comments or replies that a given
-#' post or comment receives.
-#' 
-#' * Score refers to the net upvotes a post or comment receives. 
-#' 
-#' * Intensity is the ratio of the sum of words from 8 emotions to total words 
-#' in a given post or comment. The values are calculated based on matching the 
-#' words in the post or comment to the NRC dictionary 
-#' (Saif Mohammad’s NRC Emotion lexicon, 
-#' see http://saifmohammad.com/WebPages/NRC-Emotion-Lexicon.htm). A post with 
-#' a higher intensity has more emotionally laden words. 
-#' 
-#' * Balance is the ratio of the positive valance value to the sum of the 
-#' positive and negative valance values. Again, the values are derived from the
-#' NRC dictionary. A balanced post will have a balance of
-#' 0.5, indicating that there are as many positive words as there are negative
-#' words. 
-#' 
-#' ## Overall
-#' 
-#' First, we consider the data posts overall by checking if censoring over time 
-#' is a big driver of comment counts or 
-#' score. The following plots indicate that censoring isn't a driving issue.
-#' 
-#' We also note that the vast majority of top posts are "Not the A-hole."
-
-#+ include = T, message=F, warning=F, echo = F, fig.height = 6, fig.width = 9
-post_cln %>% 
-  ggplot()+
-  geom_boxplot(aes(lubridate::round_date(created, "month"), num_comments
-                   , group = lubridate::round_date(created, "month")))+
-  labs(x = "Month", y = "Comments Per Post"
-       , title = "Distribution of Comments per Post over time")+
-  theme_bw()
-post_cln %>% 
-  ggplot()+
-  geom_boxplot(aes(lubridate::round_date(created, "month"), score
-                   , group = lubridate::round_date(created, "month")))+
-  labs(x = "Month", y = "Score"
-       , title = "Distribution of Score over time")+
-  theme_bw()
-
-post_cln %>% 
-  ggplot()+
-  geom_bar(aes(x = factor(link_flair_text)))+
-  labs(x = "Outcome", y = "Posts"
-       , title = "Distribution of Outcome Votes")+
-  theme_bw()
-
-#' ## Distributions of key variables in Posts
-#' 
-#' We consider the distributions of post comments, score, intensity and balance
-#' to identify outliers or observations that should be dropped. 
-#' 
-#' We don't see anything unusual among the non-deleted posts. 
-
-#+ include = T, message=F, warning=F, echo = F, fig.height = 6, fig.width = 9
-post_cln %>% 
-  ggplot()+
-  geom_histogram(aes(x = num_comments))+
-  labs(x = "Comments per Post", y = "Posts"
-       , title = "Distribution of Comments per Post")+
-  theme_bw()
-
-post_cln %>% 
-  ggplot()+
-  geom_histogram(aes(x = score))+
-  labs(x = "Score", y = "Posts"
-       , title = "Distribution of Post Scores")+
-  theme_bw()
-
-
-
-#' Having checked the marginal distributions of comments and score, we also
-#' want to consider the joint distribution. 
-#' 
-#' For both level-level and log-log, comments and score are correlated which is
-#'  as we might expect. A 1 point increase in score is associated with a 0.05 
-#' increase in comments, and a 1 percent increase in score is associated with 
-#' a 0.47 percent increase in comments. 
-#' 
-
-#+ include = F
-lev_lev_plot = post_cln %>% 
-  ggplot()+
-  geom_point(aes(x = score,y=num_comments))+
-  geom_smooth(aes(x = score,y=num_comments), method = "lm")+
-  theme_bw()+
-  labs(x = "Post Score", y = "Comments"
-       , title = "Comparison of Post Comments and Score")
-
-lev_lev = post_cln[
-  , fixest::feols(num_comments~score, data = .SD)
-]
-
-log_log_plot = post_cln%>% 
-  ggplot()+
-  geom_point(aes(x = score,y=num_comments))+
-  geom_smooth(aes(x = score,y=num_comments), method = "lm")+
-  theme_bw()+
-  labs(x = "Post Score", y = "Comments"
-       , title = "Comparison of Post Comments and Score (Log-Log)")+
-  scale_x_log10()+
-  scale_y_log10()
-
-log_log = post_cln[
-  , fixest::feols(log(num_comments)~log(score), data = .SD)
-]
-#+ include = T, message=F, warning=F, echo = F, fig.height = 6, fig.width = 9
-ggpubr::ggarrange(lev_lev_plot, log_log_plot, ncol = 2, nrow = 1)
-fixest::etable(list(lev_lev = lev_lev, log_log = log_log))
-
-
-#' Lastly, we want to check the distributions of intensity and balance. 
-#' 
-#' We observe that intensity is somewhat right skewed, so most posts
-#' tend to be less intense than the most extreme posts. 
-#' 
-#' We observe that balance is fairly evenly distributed, but is centered
-#' above 0.5. This indicates that balance varies by post, but tends to be a bit
-#' more positive than negative.
-
-
-#+ include = T, message=F, warning=F, echo = F, fig.height = 6, fig.width = 9
-post_cln %>% 
-  ggplot()+
-  geom_histogram(aes(x = intensity))+
-  labs(x = "Intensity", y = "Posts"
-       , title = "Distribution of Post Intensity")+
-  theme_bw()
-
-post_cln%>% 
-  ggplot()+
-  geom_histogram(aes(x = balance))+
-  labs(x = "Balance", y = "Posts"
-       , title = "Distribution of Post Balance")+
-  theme_bw()
-
-
-#' ## Distributions of key variables in Comments
-#' 
-#' We consider the distribution of comment replies, score, intensity and balance
-#' to identify outliers or observations that should be dropped. 
-#' 
-#' We notice that an enormous share of comments have 1 upvote. Since this may
-#' be a self-voted value and is therefore unrelated to a replies impact on
-#' other people, we don't consider single upvote comments when investigating 
-#' comment scores. 
-
-#+ include = T, message=F, warning=F, echo = F, fig.height = 6, fig.width = 9
-comment_cln %>% 
-  ggplot()+
-  geom_histogram(aes(x = reply_count_comment))+
-  labs(x = "Replies per Comment", y = "Comments"
-       , title = "Distribution of Replies per Comment")+
-  theme_bw()+
-  scale_x_log10()
-
-comment_cln %>% 
-  ggplot()+
-  geom_histogram(aes(x = score_comment))+
-  labs(x = "Score", y = "Comments"
-       , title = "Distribution of Score per Comment")+
-  theme_bw()+
-  scale_x_log10()
-
-
-#' Having checked the marginal distributions of replies and score, we also
-#' want to consider the joint distribution. 
-#' 
-#' For both level-level and log-log, replies and score are correlated which is
-#'  as we might expect. A 1 point increase in score is associated with a 0.003 
-#' increase in replies, and a 1 percent increase in score is associated with 
-#' a 0.32 percent increase in comments. 
-#' 
-#' Including post fixed effects, we observe similar correlations: 
-#' 0.003 and 0.34 respectively. 
-#' 
-
-
-#+ include = F
-
-lev_lev_plot = comment_cln[score_comment>1] %>% 
-  ggplot()+
-  geom_point(aes(x = score_comment, y = reply_count_comment))+
-  geom_smooth(aes(x = score_comment, y = reply_count_comment), method = "lm")+
-  theme_bw()+
-  labs(x = "Comment Score", y = "Replies"
-       , title = "Comparison of Comment Replies and Score")
-
-log_log_plot = comment_cln[score_comment>1] %>% 
-  ggplot()+
-  geom_point(aes(x = score_comment, y = reply_count_comment))+
-  geom_smooth(aes(x = score_comment, y = reply_count_comment), method = "lm")+
-  theme_bw()+
-  labs(x = "Comment Score", y = "Replies"
-       , title = "Comparison of Comment Replies and Score")+
-  scale_x_log10()+
-  scale_y_log10()
-
-lev_lev = comment_cln[score_comment>1] %>% 
-  fixest::feols(reply_count_comment~score_comment)
-lev_lev_post_fe = comment_cln[score_comment>1] %>% 
-  fixest::feols(reply_count_comment~score_comment|id)
-log_log = comment_cln[score_comment>1] %>% 
-  fixest::feols(log(reply_count_comment)~log(score_comment))
-log_log_post_fe = comment_cln[score_comment>1] %>% 
-  fixest::feols(log(reply_count_comment)~log(score_comment)|id)
-
-#+ include = T, message=F, warning=F, echo = F, fig.height = 6, fig.width = 9
-ggpubr::ggarrange(lev_lev_plot, log_log_plot, ncol = 2, nrow = 1)
-fixest::etable(lev_lev, log_log, lev_lev_post_fe, log_log_post_fe)
-
-
-#' Lastly, we want to check the distributions of intensity and balance. 
-#' 
-#' We observe that intensity ranges greatly and is severely right skewed.
-#' Most comments tend to be very unintense, but some are very intense. Note that
-#' values above 1 come from comments with words that appear in multiple 
-#' emotions. 
-#' 
-#' We observe that balance is fairly evenly distributed, but is concentrated 
-#' at 0, 0.5, and 1, as well as 1/3, 2/3, 1/4, 3/4, and other fractions. This
-#' is because most comments are much shorter than posts, and so often have few 
-#' if any valance (positive or negative) words. 
-
-#+ include = T, message=F, warning=F, echo = F, fig.height = 6, fig.width = 9
-comment_cln%>% 
-  ggplot()+
-  geom_histogram(aes(x = intensity_comment))+
-  labs(x = "Intensity", y = "Comments"
-       , title = "Distribution of Comment Intensity")+
-  theme_bw()
-
-comment_cln%>% 
-  ggplot()+
-  geom_histogram(aes(x = balance_comment))+
-  labs(x = "Balance", y = "Comments"
-       , title = "Distribution of Comment Balance")+
-  theme_bw()
-
-
-##################)
 # Post Intensity, Balance and Popularity ----
 ##################)
 #' # Post Intensity, Balance and Popularity
@@ -516,25 +269,15 @@ lev_lev_plot = post_cln %>%
   geom_smooth(aes(x = intensity, y = score), method = "lm")+
   theme_bw()+
   labs(x = "Post Intensity", y = "Score"
-       , title = "Comparison of Intensity and Score")
-
-log_lev_plot =  post_cln %>% 
-  ggplot()+
-  geom_point(aes(x = intensity, y = score))+
-  geom_smooth(aes(x = intensity, y = score), method = "lm")+
-  theme_bw()+
-  labs(x = "Post Intensity", y = "Score"
-       , title = "Comparison of Intensity and Score")+
-  scale_y_log10()
+       , title = "Comparison of Intensity and Score"
+       , caption = "Source: Scraped r/AITA data.")
 
 lev_lev = post_cln %>% 
   fixest::feols(score~intensity)
-log_lev = post_cln %>% 
-  fixest::feols(log(score)~intensity)
 
-#+ include = T, message=F, warning=F, echo = F, fig.height = 6, fig.width = 9
-ggpubr::ggarrange(lev_lev_plot, log_lev_plot, ncol = 2, nrow = 1)
-fixest::etable(lev_lev, log_lev)
+#+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
+lev_lev_plot
+fixest::etable(lev_lev)
 
 #+ include = F
 
@@ -544,25 +287,15 @@ lev_lev_plot = post_cln %>%
   geom_smooth(aes(x = intensity, y = num_comments), method = "lm")+
   theme_bw()+
   labs(x = "Post Intensity", y = "Comments"
-       , title = "Comparison of Intensity and Comments")
-
-log_lev_plot =  post_cln %>% 
-  ggplot()+
-  geom_point(aes(x = intensity, y = num_comments))+
-  geom_smooth(aes(x = intensity, y = num_comments), method = "lm")+
-  theme_bw()+
-  labs(x = "Post Intensity", y = "Comments"
-       , title = "Comparison of Intensity and Comments")+
-  scale_y_log10()
+       , title = "Comparison of Intensity and Comments"
+       , caption = "Source: Scraped r/AITA data.")
 
 lev_lev = post_cln %>% 
   fixest::feols(num_comments~intensity)
-log_lev = post_cln %>% 
-  fixest::feols(log(num_comments)~intensity)
 
-#+ include = T, message=F, warning=F, echo = F, fig.height = 6, fig.width = 9
-ggpubr::ggarrange(lev_lev_plot, log_lev_plot, ncol = 2, nrow = 1)
-fixest::etable(lev_lev, log_lev)
+#+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
+lev_lev_plot
+fixest::etable(lev_lev)
 
 ## Balance and Popularity ----
 #' ## Balance and Popularity
@@ -578,12 +311,7 @@ fixest::etable(lev_lev, log_lev)
 #' One interesting takeaway is that almost all the most positive posts have low 
 #' scores, while very negative posts have more positive scores. Additionally, 
 #' nearly all the highest scored/most commented as well as the least commented
-#' posts are in the middle range of balance. 
-#' 
-#' 
-#' Perhaps there is some negative engagement response associated with overly 
-#' positive or negative posts, though with the current lack of correlation it's 
-#' hard to say.
+#' posts are in the middle range of balance.
 #' 
 #' Further analysis with a larger sample size may give more insight into the 
 #' relationship of emotional balance and post popularity. 
@@ -597,25 +325,16 @@ lev_lev_plot = post_cln %>%
   geom_smooth(aes(x = balance, y = score), method = "lm")+
   theme_bw()+
   labs(x = "Post Balance", y = "Score"
-       , title = "Comparison of Balance and Score")
-
-log_lev_plot =  post_cln %>% 
-  ggplot()+
-  geom_point(aes(x = balance, y = score))+
-  geom_smooth(aes(x = balance, y = score), method = "lm")+
-  theme_bw()+
-  labs(x = "Post Balance", y = "Score"
-       , title = "Comparison of Balance and Score")+
-  scale_y_log10()
+       , title = "Comparison of Balance and Score"
+       , caption = "Source: Scraped r/AITA data."
+       )
 
 lev_lev = post_cln %>% 
   fixest::feols(score~balance)
-log_lev = post_cln %>% 
-  fixest::feols(log(score)~balance)
 
-#+ include = T, message=F, warning=F, echo = F, fig.height = 6, fig.width = 9
-ggpubr::ggarrange(lev_lev_plot, log_lev_plot, ncol = 2, nrow = 1)
-fixest::etable(lev_lev, log_lev)
+#+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
+lev_lev_plot
+fixest::etable(lev_lev)
 
 #+ include = F
 
@@ -625,25 +344,14 @@ lev_lev_plot = post_cln %>%
   geom_smooth(aes(x = balance, y = num_comments), method = "lm")+
   theme_bw()+
   labs(x = "Post Balance", y = "Comments"
-       , title = "Comparison of Balance and Comments")
-
-log_lev_plot =  post_cln %>% 
-  ggplot()+
-  geom_point(aes(x = balance, y = num_comments))+
-  geom_smooth(aes(x = balance, y = num_comments), method = "lm")+
-  theme_bw()+
-  labs(x = "Post Balance", y = "Comments"
-       , title = "Comparison of Balance and Comments")+
-  scale_y_log10()
+       , title = "Comparison of Balance and Comments"
+       , caption = "Source: Scraped r/AITA data.")
 
 lev_lev = post_cln %>% 
   fixest::feols(num_comments~balance)
-log_lev = post_cln %>% 
-  fixest::feols(log(num_comments)~balance)
-
-#+ include = T, message=F, warning=F, echo = F, fig.height = 6, fig.width = 9
-ggpubr::ggarrange(lev_lev_plot, log_lev_plot, ncol = 2, nrow = 1)
-fixest::etable(lev_lev, log_lev)
+#+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
+lev_lev_plot
+fixest::etable(lev_lev)
 
 #+ include = F
 ##################)
@@ -711,25 +419,16 @@ lev_lev_plot = post_polar %>%
   geom_smooth(aes(x = sd_norm,y=score), method = "lm")+
   theme_bw()+
   labs(x = "Polarity", y = "Post Score"
-       , title = "Comparison of Post Comments Polarity and Popularity")
+       , title = "Comparison of Post Comments Polarity and Popularity"
 
-log_lev_plot = post_polar %>% 
-  ggplot()+
-  geom_point(aes(x = sd_norm,y=score))+
-  geom_smooth(aes(x = sd_norm,y=score), method = "lm")+
-  theme_bw()+
-  labs(x = "Polarity", y = "Post Score"
-       , title = "Comparison of Post Comments Polarity and Popularity")+
-  scale_y_log10()
+       , caption = "Source: Scraped r/AITA data.")
 
 lev_lev = post_polar %>% 
   fixest::feols(score~sd_norm)
-log_lev = post_polar %>% 
-  fixest::feols(log(score)~sd_norm)
 #' ### Results of Polarity on Score
-#+ include = T, message=F, warning=F, echo = F, fig.height = 6, fig.width = 9
-ggpubr::ggarrange(lev_lev_plot, log_lev_plot, ncol = 2, nrow = 1)
-fixest::etable(lev_lev, log_lev)
+#+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
+lev_lev_plot
+fixest::etable(lev_lev)
 
 
 #+ include = F
@@ -739,34 +438,24 @@ lev_lev_plot = post_polar %>%
   geom_smooth(aes(x = sd_norm,y=num_comments), method = "lm")+
   theme_bw()+
   labs(x = "Polarity", y = "Post Comments"
-       , title = "Comparison of Post Comments Polarity and Popularity")
+       , title = "Comparison of Post Comments Polarity and Popularity"
 
-log_lev_plot = post_polar %>% 
-  ggplot()+
-  geom_point(aes(x = sd_norm,y=num_comments))+
-  geom_smooth(aes(x = sd_norm,y=num_comments), method = "lm")+
-  theme_bw()+
-  labs(x = "Polarity", y = "Post Comments"
-       , title = "Comparison of Post Comments Polarity and Popularity")+
-  scale_y_log10()
+       , caption = "Source: Scraped r/AITA data.")
 
 lev_lev = post_polar %>% 
   fixest::feols(num_comments~sd_norm)
-log_lev = post_polar %>% 
-  fixest::feols(log(num_comments)~sd_norm)
+
 #' ### Results of Polarity on Number of Comments
-#+ include = T, message=F, warning=F, echo = F, fig.height = 6, fig.width = 9
-ggpubr::ggarrange(lev_lev_plot, log_lev_plot, ncol = 2, nrow = 1)
-fixest::etable(lev_lev, log_lev)
+#+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
+lev_lev_plot
+fixest::etable(lev_lev)
 
 #+ include = F
 lev_lev = post_polar %>% 
   fixest::feols(score~sd_norm+num_comments)
-log_lev = post_polar %>% 
-  fixest::feols(log(score)~sd_norm+log(num_comments))
 
 #' ### Results of Polarity on Score, Controlling for Number of Comments
-fixest::etable(lev_lev, log_lev)
+fixest::etable(lev_lev)
 
 
 ## Voting Polarization ----
@@ -801,25 +490,16 @@ lev_lev_plot = post_polar_vote %>%
   geom_smooth(aes(x = vote_polarization,y=score), method = "lm")+
   theme_bw()+
   labs(x = "Voting Polarity", y = "Post Score"
-       , title = "Comparison of Post Comments Polarity and Popularity")
+       , title = "Comparison of Post Comments Polarity and Popularity"
 
-log_lev_plot = post_polar_vote %>% 
-  ggplot()+
-  geom_point(aes(x = vote_polarization,y=score))+
-  geom_smooth(aes(x = vote_polarization,y=score), method = "lm")+
-  theme_bw()+
-  labs(x = "Voting Polarity", y = "Post Score"
-       , title = "Comparison of Post Comments Polarity and Popularity")+
-  scale_y_log10()
+       , caption = "Source: Scraped r/AITA data.")
 
 lev_lev = post_polar_vote %>% 
   fixest::feols(score~vote_polarization)
-log_lev = post_polar_vote %>% 
-  fixest::feols(log(score)~vote_polarization)
 #' ### Results of Polarity on Score
-#+ include = T, message=F, warning=F, echo = F, fig.height = 6, fig.width = 9
-ggpubr::ggarrange(lev_lev_plot, log_lev_plot, ncol = 2, nrow = 1)
-fixest::etable(lev_lev, log_lev)
+#+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
+lev_lev_plot
+fixest::etable(lev_lev)
 
 #+ include = F
 lev_lev_plot = post_polar_vote %>% 
@@ -828,45 +508,308 @@ lev_lev_plot = post_polar_vote %>%
   geom_smooth(aes(x = vote_polarization,y=num_comments), method = "lm")+
   theme_bw()+
   labs(x = "Voting Polarity", y = "Post Comments"
-       , title = "Comparison of Post Comments Polarity and Popularity")
+       , title = "Comparison of Post Comments Polarity and Popularity"
 
-log_lev_plot = post_polar_vote %>% 
-  ggplot()+
-  geom_point(aes(x = vote_polarization,y=num_comments))+
-  geom_smooth(aes(x = vote_polarization,y=num_comments), method = "lm")+
-  theme_bw()+
-  labs(x = "Voting Polarity", y = "Post Comments"
-       , title = "Comparison of Post Comments Polarity and Popularity")+
-  scale_y_log10()
+       , caption = "Source: Scraped r/AITA data.")
 
 lev_lev = post_polar_vote %>% 
   fixest::feols(num_comments~vote_polarization)
-log_lev = post_polar_vote %>% 
-  fixest::feols(log(num_comments)~vote_polarization)
+
 #' ### Results of Polarity on Score
-#+ include = T, message=F, warning=F, echo = F, fig.height = 6, fig.width = 9
-ggpubr::ggarrange(lev_lev_plot, log_lev_plot, ncol = 2, nrow = 1)
-fixest::etable(lev_lev, log_lev)
+#+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
+lev_lev_plot
+fixest::etable(lev_lev)
 
 #+ include = F
 lev_lev = post_polar_vote %>% 
   fixest::feols(score~vote_polarization+num_comments)
-log_lev = post_polar_vote %>% 
-  fixest::feols(log(score)~vote_polarization+log(num_comments))
 
 #' ### Results of Polarity on Score, Controlling for Number of Comments
-fixest::etable(lev_lev, log_lev)
+fixest::etable(lev_lev)
+
+
+##################)
+# Basic Descriptive Facts ----
+##################)
+
+#' # Basic Descriptive Facts
+#' 
+#' We want to explore the overall distributions of the key variables in this 
+#' analysis, and confirm that the data adhere to our expectations. We focus this
+#' analysis on comments/replies, score, intensity, and balance. 
+#' 
+#' * Comments/replies refers to the number of comments or replies that a given
+#' post or comment receives.
+#' 
+#' * Score refers to the net upvotes a post or comment receives. 
+#' 
+#' * Intensity is the ratio of the sum of words from 8 emotions to total words 
+#' in a given post or comment. The values are calculated based on matching the 
+#' words in the post or comment to the NRC dictionary 
+#' (Saif Mohammad’s NRC Emotion lexicon, 
+#' see http://saifmohammad.com/WebPages/NRC-Emotion-Lexicon.htm). A post with 
+#' a higher intensity has more emotionally laden words. 
+#' 
+#' * Balance is the ratio of the positive valance value to the sum of the 
+#' positive and negative valance values. Again, the values are derived from the
+#' NRC dictionary. A balanced post will have a balance of
+#' 0.5, indicating that there are as many positive words as there are negative
+#' words. 
+#' 
+#' ## Overall
+#' 
+#' First, we consider the data posts overall by checking if censoring over time 
+#' is a big driver of comment counts or 
+#' score. The following plots indicate that censoring isn't a driving issue.
+#' 
+#' We also note that the vast majority of top posts are "Not the A-hole."
+
+#+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
+post_cln %>% 
+  ggplot()+
+  geom_boxplot(aes(lubridate::round_date(created, "month"), num_comments
+                   , group = lubridate::round_date(created, "month")))+
+  labs(x = "Month", y = "Comments Per Post"
+       , title = "Distribution of Comments per Post over time"
+
+       , caption = "Source: Scraped r/AITA data.")+
+  theme_bw()
+post_cln %>% 
+  ggplot()+
+  geom_boxplot(aes(lubridate::round_date(created, "month"), score
+                   , group = lubridate::round_date(created, "month")))+
+  labs(x = "Month", y = "Score"
+       , title = "Distribution of Score over time"
+
+       , caption = "Source: Scraped r/AITA data.")+
+  theme_bw()
+
+post_cln %>% 
+  ggplot()+
+  geom_bar(aes(x = factor(link_flair_text)))+
+  labs(x = "Outcome", y = "Posts"
+       , title = "Distribution of Outcome Votes"
+
+       , caption = "Source: Scraped r/AITA data.")+
+  theme_bw()
+
+#' ## Distributions of key variables in Posts
+#' 
+#' We consider the distributions of post comments, score, intensity and balance
+#' to identify outliers or observations that should be dropped. 
+#' 
+#' We don't see anything unusual among the non-deleted posts. 
+
+#+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
+post_cln %>% 
+  ggplot()+
+  geom_histogram(aes(x = num_comments))+
+  labs(x = "Comments per Post", y = "Posts"
+       , title = "Distribution of Comments per Post"
+
+       , caption = "Source: Scraped r/AITA data.")+
+  theme_bw()
+
+post_cln %>% 
+  ggplot()+
+  geom_histogram(aes(x = score))+
+  labs(x = "Score", y = "Posts"
+       , title = "Distribution of Post Scores"
+
+       , caption = "Source: Scraped r/AITA data.")+
+  theme_bw()
+
+
+
+#' Having checked the marginal distributions of comments and score, we also
+#' want to consider the joint distribution. 
+#' 
+#' For both level-level and log-log, comments and score are correlated which is
+#'  as we might expect. A 1 point increase in score is associated with a 0.05 
+#' increase in comments, and a 1 percent increase in score is associated with 
+#' a 0.47 percent increase in comments. 
+#' 
+
+#+ include = F
+lev_lev_plot = post_cln %>% 
+  ggplot()+
+  geom_point(aes(x = score,y=num_comments))+
+  geom_smooth(aes(x = score,y=num_comments), method = "lm")+
+  theme_bw()+
+  labs(x = "Post Score", y = "Comments"
+       , title = "Comparison of Comments and Score: Levels"
+
+       , caption = "Source: Scraped r/AITA data.")
+
+lev_lev = post_cln[
+  , fixest::feols(num_comments~score, data = .SD)
+]
+
+log_log_plot = post_cln%>% 
+  ggplot()+
+  geom_point(aes(x = score,y=num_comments))+
+  geom_smooth(aes(x = score,y=num_comments), method = "lm")+
+  theme_bw()+
+  labs(x = "Post Score", y = "Comments"
+       , title = "Logs")+
+  scale_x_log10()+
+  scale_y_log10()
+
+log_log = post_cln[
+  , fixest::feols(log(num_comments)~log(score), data = .SD)
+]
+#+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 9
+ggpubr::ggarrange(lev_lev_plot, log_log_plot, ncol = 2, nrow = 1)
+fixest::etable(list(lev_lev = lev_lev, log_log = log_log))
+
+
+#' Lastly, we want to check the distributions of intensity and balance. 
+#' 
+#' We observe that intensity is somewhat right skewed, so most posts
+#' tend to be less intense than the most extreme posts. 
+#' 
+#' We observe that balance is fairly evenly distributed, but is centered
+#' above 0.5. This indicates that balance varies by post, but tends to be a bit
+#' more positive than negative.
+
+
+#+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
+post_cln %>% 
+  ggplot()+
+  geom_histogram(aes(x = intensity))+
+  labs(x = "Intensity", y = "Posts"
+       , title = "Distribution of Post Intensity"
+
+       , caption = "Source: Scraped r/AITA data.")+
+  theme_bw()
+
+post_cln%>% 
+  ggplot()+
+  geom_histogram(aes(x = balance))+
+  labs(x = "Balance", y = "Posts"
+       , title = "Distribution of Post Balance"
+
+       , caption = "Source: Scraped r/AITA data.")+
+  theme_bw()
+
+
+#' ## Distributions of key variables in Comments
+#' 
+#' We consider the distribution of comment replies, score, intensity and balance
+#' to identify outliers or observations that should be dropped. 
+#' 
+#' We notice that an enormous share of comments have 1 upvote. Since this may
+#' be a self-voted value and is therefore unrelated to a replies impact on
+#' other people, we don't consider single upvote comments when investigating 
+#' comment scores. 
+
+#+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
+comment_cln %>% 
+  ggplot()+
+  geom_histogram(aes(x = reply_count_comment))+
+  labs(x = "Replies per Comment", y = "Comments"
+       , title = "Distribution of Replies per Comment"
+
+       , caption = "Source: Scraped r/AITA data.")+
+  theme_bw()+
+  scale_x_log10()
+
+comment_cln %>% 
+  ggplot()+
+  geom_histogram(aes(x = score_comment))+
+  labs(x = "Score", y = "Comments"
+       , title = "Distribution of Score per Comment"
+       , caption = "Source: Scraped r/AITA data.")+
+  theme_bw()+
+  scale_x_log10()
+
+
+#' Having checked the marginal distributions of replies and score, we also
+#' want to consider the joint distribution. 
+#' 
+#' For both level-level and log-log, replies and score are correlated which is
+#'  as we might expect. A 1 point increase in score is associated with a 0.003 
+#' increase in replies, and a 1 percent increase in score is associated with 
+#' a 0.32 percent increase in comments. 
+#' 
+#' Including post fixed effects, we observe similar correlations: 
+#' 0.003 and 0.34 respectively. 
+#' 
+
+
+#+ include = F
+
+lev_lev_plot = comment_cln[score_comment>1] %>% 
+  ggplot()+
+  geom_point(aes(x = score_comment, y = reply_count_comment))+
+  geom_smooth(aes(x = score_comment, y = reply_count_comment), method = "lm")+
+  theme_bw()+
+  labs(x = "Comment Score", y = "Replies"
+       , title = "Comparison of Replies and Scores: Levels")
+
+log_log_plot = comment_cln[score_comment>1] %>% 
+  ggplot()+
+  geom_point(aes(x = score_comment, y = reply_count_comment))+
+  geom_smooth(aes(x = score_comment, y = reply_count_comment), method = "lm")+
+  theme_bw()+
+  labs(x = "Comment Score", y = "Replies"
+       , title = "Logs")+
+  scale_x_log10()+
+  scale_y_log10()
+
+lev_lev = comment_cln[score_comment>1] %>% 
+  fixest::feols(reply_count_comment~score_comment)
+lev_lev_post_fe = comment_cln[score_comment>1] %>% 
+  fixest::feols(reply_count_comment~score_comment|id)
+log_log = comment_cln[score_comment>1] %>% 
+  fixest::feols(log(reply_count_comment)~log(score_comment))
+log_log_post_fe = comment_cln[score_comment>1] %>% 
+  fixest::feols(log(reply_count_comment)~log(score_comment)|id)
+
+#+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 9
+ggpubr::ggarrange(lev_lev_plot, log_log_plot, ncol = 2, nrow = 1)
+fixest::etable(lev_lev, log_log, lev_lev_post_fe, log_log_post_fe)
+
+
+#' Lastly, we want to check the distributions of intensity and balance. 
+#' 
+#' We observe that intensity ranges greatly and is severely right skewed.
+#' Most comments tend to be very unintense, but some are very intense. Note that
+#' values above 1 come from comments with words that appear in multiple 
+#' emotions. 
+#' 
+#' We observe that balance is fairly evenly distributed, but is concentrated 
+#' at 0, 0.5, and 1, as well as 1/3, 2/3, 1/4, 3/4, and other fractions. This
+#' is because most comments are much shorter than posts, and so often have few 
+#' if any valance (positive or negative) words. 
+
+#+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
+comment_cln%>% 
+  ggplot()+
+  geom_histogram(aes(x = intensity_comment))+
+  labs(x = "Intensity", y = "Comments"
+       , title = "Distribution of Comment Intensity"
+       , caption = "Source: Scraped r/AITA data.")+
+  theme_bw()
+
+comment_cln%>% 
+  ggplot()+
+  geom_histogram(aes(x = balance_comment))+
+  labs(x = "Balance", y = "Comments"
+       , title = "Distribution of Comment Balance"
+       , caption = "Source: Scraped r/AITA data.")+
+  theme_bw()
+
 
 
 ##################)
 # Appendix ----
 ##################)
 #' # Appendix
-#+ include = F
 ## Emotional Polarity Robustness ----
 #' ## Emotional Polarity Robustness
 
-
+#+ include = F
 post_polar = top_posts[
   ,`:=`(quant_min = quantile(intensity_comment*balance_comment, .05, na.rm = T)
         , quant_max = quantile(intensity_comment*balance_comment, .95, na.rm = T))
@@ -892,25 +835,15 @@ lev_lev_plot = post_polar %>%
   geom_smooth(aes(x = sd_norm,y=score), method = "lm")+
   theme_bw()+
   labs(x = "Polarity", y = "Post Score"
-       , title = "Comparison of Post Comments Polarity and Popularity")
-
-log_lev_plot = post_polar %>% 
-  ggplot()+
-  geom_point(aes(x = sd_norm,y=score))+
-  geom_smooth(aes(x = sd_norm,y=score), method = "lm")+
-  theme_bw()+
-  labs(x = "Polarity", y = "Post Score"
-       , title = "Comparison of Post Comments Polarity and Popularity")+
-  scale_y_log10()
+       , title = "Comparison of Post Comments Polarity and Popularity"
+       , caption = "Source: Scraped r/AITA data.")
 
 lev_lev = post_polar %>% 
   fixest::feols(score~sd_norm)
-log_lev = post_polar %>% 
-  fixest::feols(log(score)~sd_norm)
 #' ### Results of Polarity on Score
-#+ include = T, message=F, warning=F, echo = F, fig.height = 6, fig.width = 9
-ggpubr::ggarrange(lev_lev_plot, log_lev_plot, ncol = 2, nrow = 1)
-fixest::etable(lev_lev, log_lev)
+#+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
+lev_lev_plot
+fixest::etable(lev_lev)
 
 
 #+ include = F
@@ -920,35 +853,24 @@ lev_lev_plot = post_polar %>%
   geom_smooth(aes(x = sd_norm,y=num_comments), method = "lm")+
   theme_bw()+
   labs(x = "Polarity", y = "Post Comments"
-       , title = "Comparison of Post Comments Polarity and Popularity")
-
-log_lev_plot = post_polar %>% 
-  ggplot()+
-  geom_point(aes(x = sd_norm,y=num_comments))+
-  geom_smooth(aes(x = sd_norm,y=num_comments), method = "lm")+
-  theme_bw()+
-  labs(x = "Polarity", y = "Post Comments"
-       , title = "Comparison of Post Comments Polarity and Popularity")+
-  scale_y_log10()
+       , title = "Comparison of Post Comments Polarity and Popularity"
+       , caption = "Source: Scraped r/AITA data.")
 
 lev_lev = post_polar %>% 
   fixest::feols(num_comments~sd_norm)
-log_lev = post_polar %>% 
-  fixest::feols(log(num_comments)~sd_norm)
 #' ### Results of Polarity on Number of Comments
-#+ include = T, message=F, warning=F, echo = F, fig.height = 6, fig.width = 9
-ggpubr::ggarrange(lev_lev_plot, log_lev_plot, ncol = 2, nrow = 1)
-fixest::etable(lev_lev, log_lev)
+#+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
+lev_lev_plot
+fixest::etable(lev_lev)
 
 #+ include = F
 lev_lev = post_polar %>% 
   fixest::feols(score~sd_norm+num_comments)
-log_lev = post_polar %>% 
-  fixest::feols(log(score)~sd_norm+log(num_comments))
 
 #' ### Results of Polarity on Score, Controlling for Number of Comments
-fixest::etable(lev_lev, log_lev)
+fixest::etable(lev_lev)
 
+#+ include = F
 post_polar = top_posts[
   ,`:=`(quant_min = quantile(intensity_comment*balance_comment, .05, na.rm = T)
         , quant_max = quantile(intensity_comment*balance_comment, .95, na.rm = T))
@@ -974,25 +896,15 @@ lev_lev_plot = post_polar %>%
   geom_smooth(aes(x = iqr_norm,y=score), method = "lm")+
   theme_bw()+
   labs(x = "Polarity", y = "Post Score"
-       , title = "Comparison of Post Comments Polarity and Popularity")
-
-log_lev_plot = post_polar %>% 
-  ggplot()+
-  geom_point(aes(x = iqr_norm,y=score))+
-  geom_smooth(aes(x = iqr_norm,y=score), method = "lm")+
-  theme_bw()+
-  labs(x = "Polarity", y = "Post Score"
-       , title = "Comparison of Post Comments Polarity and Popularity")+
-  scale_y_log10()
+       , title = "Comparison of Post Comments Polarity and Popularity"
+       , caption = "Source: Scraped r/AITA data.")
 
 lev_lev = post_polar %>% 
   fixest::feols(score~iqr_norm)
-log_lev = post_polar %>% 
-  fixest::feols(log(score)~iqr_norm)
 #' ### Results of Polarity on Score
-#+ include = T, message=F, warning=F, echo = F, fig.height = 6, fig.width = 9
-ggpubr::ggarrange(lev_lev_plot, log_lev_plot, ncol = 2, nrow = 1)
-fixest::etable(lev_lev, log_lev)
+#+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
+lev_lev_plot
+fixest::etable(lev_lev)
 
 
 #+ include = F
@@ -1002,32 +914,20 @@ lev_lev_plot = post_polar %>%
   geom_smooth(aes(x = iqr_norm,y=num_comments), method = "lm")+
   theme_bw()+
   labs(x = "Polarity", y = "Post Comments"
-       , title = "Comparison of Post Comments Polarity and Popularity")
-
-log_lev_plot = post_polar %>% 
-  ggplot()+
-  geom_point(aes(x = iqr_norm,y=num_comments))+
-  geom_smooth(aes(x = iqr_norm,y=num_comments), method = "lm")+
-  theme_bw()+
-  labs(x = "Polarity", y = "Post Comments"
-       , title = "Comparison of Post Comments Polarity and Popularity")+
-  scale_y_log10()
+       , title = "Comparison of Post Comments Polarity and Popularity"
+       , caption = "Source: Scraped r/AITA data.")
 
 lev_lev = post_polar %>% 
   fixest::feols(num_comments~iqr_norm)
-log_lev = post_polar %>% 
-  fixest::feols(log(num_comments)~iqr_norm)
 #' ### Results of Polarity on Number of Comments
-#+ include = T, message=F, warning=F, echo = F, fig.height = 6, fig.width = 9
-ggpubr::ggarrange(lev_lev_plot, log_lev_plot, ncol = 2, nrow = 1)
-fixest::etable(lev_lev, log_lev)
+#+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
+lev_lev_plot
+fixest::etable(lev_lev)
 
 #+ include = F
 lev_lev = post_polar %>% 
   fixest::feols(score~iqr_norm+num_comments)
-log_lev = post_polar %>% 
-  fixest::feols(log(score)~iqr_norm+log(num_comments))
 
 #' ### Results of Polarity on Score, Controlling for Number of Comments
-fixest::etable(lev_lev, log_lev)
+fixest::etable(lev_lev)
 
