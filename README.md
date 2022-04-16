@@ -11,4 +11,4 @@ The data creation is performed in [pull_aita_data.R](https://github.com/pkress/a
 
 ## Initial Analysis
 
-Initial Analyses are performed in [analyze_comments.R](https://github.com/pkress/aita_stereotypes_analysis/blob/main/analyze_comments.R) and discussed in [analyze_comments.pdf](https://github.com/pkress/aita_stereotypes_analysis/blob/main/analyze_comments.pdf)
+Initial Analyses are performed in [AITA Polarization Intensity and Popularity.R](https://github.com/pkress/aita_stereotypes_analysis/blob/main/AITA Polarization Intensity and Popularity.R) and discussed in [AITA-Polarization-Intensity-and-Popularity.pdf](https://github.com/pkress/aita_stereotypes_analysis/blob/main/AITA-Polarization-Intensity-and-Popularity.pdf)
