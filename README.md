@@ -1,9 +1,14 @@
 # aita_stereotypes_analysis
-Examine posting and commenting behavior in r/AITA
+Examine posting and commenting behavior in r/AITA. 
+
+I initially focus on the relationship between post and comment-section tone and post popularity. I measure post tone using the NRC dictionary for emotional intensity and valance, and consider if top posts are more likely to be intense and/or balanced in tone. I then consider whether top posts are more likely to have polarized comment sections measured by comment intensity and valance as well as the distribution of votes. 
 
 ## Main data sources: 
-- https://github.com/iterative/aita_dataset
-- scraped reddit data for posts in aita_dataset
+Data are sourced from pulling data from reddit for posts in the public aita dataset [here](https://github.com/iterative/aita_dataset)
+The data creation is performed in [pull_aita_data.R](https://github.com/pkress/aita_stereotypes_analysis/blob/main/pull_aita_data.R)
+
+
 
 ## Initial Analysis
-- Consider text and behavior for top comments and their replies from top 250 posts based on aita_dataset of top posts. 
+
+Initial Analyses are performed in [analyze_comments.R](https://github.com/pkress/aita_stereotypes_analysis/blob/main/analyze_comments.R) and discussed in [analyze_comments.pdf](https://github.com/pkress/aita_stereotypes_analysis/blob/main/analyze_comments.pdf)
