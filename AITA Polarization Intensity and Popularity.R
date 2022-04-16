@@ -406,17 +406,17 @@ post_polar = top_posts[
       , num_comments = first(num_comments))
   , .(id, selftext, intensity, balance)
   ][
-  , `:=`(iqr_norm = (iqr_ind - mean(iqr_ind))/sd(iqr_ind)
-         , sd_norm = (sd_ind - mean(sd_ind))/sd(sd_ind))
+  , `:=`(polarity_index_IQR = (iqr_ind - mean(iqr_ind))/sd(iqr_ind)
+         , polarity_index = (sd_ind - mean(sd_ind))/sd(sd_ind))
   ][
-  , `:=`(iqr_shift = iqr_norm - min(iqr_norm)
-         , sd_shift = sd_norm - min(sd_norm))
+  , `:=`(polarity_index_IQR_shifted = polarity_index_IQR - min(polarity_index_IQR)
+         , polarity_index_shifted = polarity_index - min(polarity_index))
   ]
 
 lev_lev_plot = post_polar %>% 
   ggplot()+
-  geom_point(aes(x = sd_norm,y=score))+
-  geom_smooth(aes(x = sd_norm,y=score), method = "lm")+
+  geom_point(aes(x = polarity_index,y=score))+
+  geom_smooth(aes(x = polarity_index,y=score), method = "lm")+
   theme_bw()+
   labs(x = "Polarity", y = "Post Score"
        , title = "Comparison of Post Comments Polarity and Popularity"
@@ -424,7 +424,7 @@ lev_lev_plot = post_polar %>%
        , caption = "Source: Scraped r/AITA data.")
 
 lev_lev = post_polar %>% 
-  fixest::feols(score~sd_norm)
+  fixest::feols(score~polarity_index)
 #' ### Results of Polarity on Score
 #+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
 lev_lev_plot
@@ -434,8 +434,8 @@ fixest::etable(lev_lev)
 #+ include = F
 lev_lev_plot = post_polar %>% 
   ggplot()+
-  geom_point(aes(x = sd_norm,y=num_comments))+
-  geom_smooth(aes(x = sd_norm,y=num_comments), method = "lm")+
+  geom_point(aes(x = polarity_index,y=num_comments))+
+  geom_smooth(aes(x = polarity_index,y=num_comments), method = "lm")+
   theme_bw()+
   labs(x = "Polarity", y = "Post Comments"
        , title = "Comparison of Post Comments Polarity and Popularity"
@@ -443,7 +443,7 @@ lev_lev_plot = post_polar %>%
        , caption = "Source: Scraped r/AITA data.")
 
 lev_lev = post_polar %>% 
-  fixest::feols(num_comments~sd_norm)
+  fixest::feols(num_comments~polarity_index)
 
 #' ### Results of Polarity on Number of Comments
 #+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
@@ -452,7 +452,7 @@ fixest::etable(lev_lev)
 
 #+ include = F
 lev_lev = post_polar %>% 
-  fixest::feols(score~sd_norm+num_comments)
+  fixest::feols(score~polarity_index+num_comments)
 
 #' ### Results of Polarity on Score, Controlling for Number of Comments
 fixest::etable(lev_lev)
@@ -822,24 +822,24 @@ post_polar = top_posts[
       , num_comments = first(num_comments))
   , .(id, selftext, intensity, balance)
 ][
-  , `:=`(iqr_norm = (iqr_ind - mean(iqr_ind))/sd(iqr_ind)
-         , sd_norm = (sd_ind - mean(sd_ind))/sd(sd_ind))
+  , `:=`(polarity_index_IQR = (iqr_ind - mean(iqr_ind))/sd(iqr_ind)
+         , polarity_index = (sd_ind - mean(sd_ind))/sd(sd_ind))
 ][
-  , `:=`(iqr_shift = iqr_norm - min(iqr_norm)
-         , sd_shift = sd_norm - min(sd_norm))
+  , `:=`(polarity_index_IQR_shifted = polarity_index_IQR - min(polarity_index_IQR)
+         , polarity_index_shifted = polarity_index - min(polarity_index))
 ]
 
 lev_lev_plot = post_polar %>% 
   ggplot()+
-  geom_point(aes(x = sd_norm,y=score))+
-  geom_smooth(aes(x = sd_norm,y=score), method = "lm")+
+  geom_point(aes(x = polarity_index,y=score))+
+  geom_smooth(aes(x = polarity_index,y=score), method = "lm")+
   theme_bw()+
   labs(x = "Polarity", y = "Post Score"
        , title = "Comparison of Post Comments Polarity and Popularity"
        , caption = "Source: Scraped r/AITA data.")
 
 lev_lev = post_polar %>% 
-  fixest::feols(score~sd_norm)
+  fixest::feols(score~polarity_index)
 #' ### Results of Polarity on Score
 #+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
 lev_lev_plot
@@ -849,15 +849,15 @@ fixest::etable(lev_lev)
 #+ include = F
 lev_lev_plot = post_polar %>% 
   ggplot()+
-  geom_point(aes(x = sd_norm,y=num_comments))+
-  geom_smooth(aes(x = sd_norm,y=num_comments), method = "lm")+
+  geom_point(aes(x = polarity_index,y=num_comments))+
+  geom_smooth(aes(x = polarity_index,y=num_comments), method = "lm")+
   theme_bw()+
   labs(x = "Polarity", y = "Post Comments"
        , title = "Comparison of Post Comments Polarity and Popularity"
        , caption = "Source: Scraped r/AITA data.")
 
 lev_lev = post_polar %>% 
-  fixest::feols(num_comments~sd_norm)
+  fixest::feols(num_comments~polarity_index)
 #' ### Results of Polarity on Number of Comments
 #+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
 lev_lev_plot
@@ -865,7 +865,7 @@ fixest::etable(lev_lev)
 
 #+ include = F
 lev_lev = post_polar %>% 
-  fixest::feols(score~sd_norm+num_comments)
+  fixest::feols(score~polarity_index+num_comments)
 
 #' ### Results of Polarity on Score, Controlling for Number of Comments
 fixest::etable(lev_lev)
@@ -883,24 +883,24 @@ post_polar = top_posts[
       , num_comments = first(num_comments))
   , .(id, selftext, intensity, balance)
 ][
-  , `:=`(iqr_norm = (iqr_ind - mean(iqr_ind))/sd(iqr_ind)
-         , sd_norm = (sd_ind - mean(sd_ind))/sd(sd_ind))
+  , `:=`(polarity_index_IQR = (iqr_ind - mean(iqr_ind))/sd(iqr_ind)
+         , polarity_index = (sd_ind - mean(sd_ind))/sd(sd_ind))
 ][
-  , `:=`(iqr_shift = iqr_norm - min(iqr_norm)
-         , sd_shift = sd_norm - min(sd_norm))
+  , `:=`(polarity_index_IQR_shifted = polarity_index_IQR - min(polarity_index_IQR)
+         , polarity_index_shifted = polarity_index - min(polarity_index))
 ]
 
 lev_lev_plot = post_polar %>% 
   ggplot()+
-  geom_point(aes(x = iqr_norm,y=score))+
-  geom_smooth(aes(x = iqr_norm,y=score), method = "lm")+
+  geom_point(aes(x = polarity_index_IQR,y=score))+
+  geom_smooth(aes(x = polarity_index_IQR,y=score), method = "lm")+
   theme_bw()+
   labs(x = "Polarity", y = "Post Score"
        , title = "Comparison of Post Comments Polarity and Popularity"
        , caption = "Source: Scraped r/AITA data.")
 
 lev_lev = post_polar %>% 
-  fixest::feols(score~iqr_norm)
+  fixest::feols(score~polarity_index_IQR)
 #' ### Results of Polarity on Score
 #+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
 lev_lev_plot
@@ -910,15 +910,15 @@ fixest::etable(lev_lev)
 #+ include = F
 lev_lev_plot = post_polar %>% 
   ggplot()+
-  geom_point(aes(x = iqr_norm,y=num_comments))+
-  geom_smooth(aes(x = iqr_norm,y=num_comments), method = "lm")+
+  geom_point(aes(x = polarity_index_IQR,y=num_comments))+
+  geom_smooth(aes(x = polarity_index_IQR,y=num_comments), method = "lm")+
   theme_bw()+
   labs(x = "Polarity", y = "Post Comments"
        , title = "Comparison of Post Comments Polarity and Popularity"
        , caption = "Source: Scraped r/AITA data.")
 
 lev_lev = post_polar %>% 
-  fixest::feols(num_comments~iqr_norm)
+  fixest::feols(num_comments~polarity_index_IQR)
 #' ### Results of Polarity on Number of Comments
 #+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
 lev_lev_plot
@@ -926,7 +926,7 @@ fixest::etable(lev_lev)
 
 #+ include = F
 lev_lev = post_polar %>% 
-  fixest::feols(score~iqr_norm+num_comments)
+  fixest::feols(score~polarity_index_IQR+num_comments)
 
 #' ### Results of Polarity on Score, Controlling for Number of Comments
 fixest::etable(lev_lev)
