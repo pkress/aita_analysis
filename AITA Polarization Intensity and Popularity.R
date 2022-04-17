@@ -402,17 +402,14 @@ fixest::etable(lev_lev)
 #+ include = F
 
 post_polar = top_posts[
-  , .(iqr_ind = IQR(intensity_comment*balance_comment, na.rm = T)
-      , sd_ind = sd(intensity_comment*balance_comment, na.rm = T)
+  , .(sd_ind = sd(intensity_comment*balance_comment, na.rm = T)
       , score = first(score)
       , num_comments = first(num_comments))
   , .(id, selftext, intensity, balance)
   ][
-  , `:=`(polarization_index_IQR = (iqr_ind - mean(iqr_ind))/sd(iqr_ind)
-         , polarization_index = (sd_ind - mean(sd_ind))/sd(sd_ind))
+  , `:=`(polarization_index = (sd_ind - mean(sd_ind))/sd(sd_ind))
   ][
-  , `:=`(polarization_index_IQR_shifted = polarization_index_IQR - min(polarization_index_IQR)
-         , polarization_index_shifted = polarization_index - min(polarization_index))
+  , `:=`(polarization_index_shifted = polarization_index - min(polarization_index))
   ]
 
 lev_lev_plot = post_polar %>% 
@@ -835,19 +832,16 @@ post_polar = top_posts[
   ,`:=`(quant_min = quantile(intensity_comment*balance_comment, .05, na.rm = T)
         , quant_max = quantile(intensity_comment*balance_comment, .95, na.rm = T))
   , id
-][
+][## Filter to inner 90%
   between(intensity_comment*balance_comment, quant_min, quant_max)
-  , .(iqr_ind = IQR(intensity_comment*balance_comment, na.rm = T)
-      , sd_ind = sd(intensity_comment*balance_comment, na.rm = T)
+  , .(sd_ind = sd(intensity_comment*balance_comment, na.rm = T)
       , score = first(score)
       , num_comments = first(num_comments))
   , .(id, selftext, intensity, balance)
 ][
-  , `:=`(polarization_index_IQR = (iqr_ind - mean(iqr_ind))/sd(iqr_ind)
-         , polarization_index = (sd_ind - mean(sd_ind))/sd(sd_ind))
+  , `:=`(polarization_index = (sd_ind - mean(sd_ind))/sd(sd_ind))
 ][
-  , `:=`(polarization_index_IQR_shifted = polarization_index_IQR - min(polarization_index_IQR)
-         , polarization_index_shifted = polarization_index - min(polarization_index))
+  , `:=`(polarization_index_shifted = polarization_index - min(polarization_index))
 ]
 
 lev_lev_plot = post_polar %>% 
@@ -894,22 +888,14 @@ fixest::etable(lev_lev)
 
 #+ include = F
 post_polar = top_posts[
-  ,`:=`(quant_min = quantile(intensity_comment*balance_comment, .05, na.rm = T)
-        , quant_max = quantile(intensity_comment*balance_comment, .95, na.rm = T))
-  , id
-][
-  # between(intensity_comment*balance_comment, quant_min, quant_max)
   , .(iqr_ind = IQR(intensity_comment*balance_comment, na.rm = T)
-      , sd_ind = sd(intensity_comment*balance_comment, na.rm = T)
       , score = first(score)
       , num_comments = first(num_comments))
   , .(id, selftext, intensity, balance)
 ][
-  , `:=`(polarization_index_IQR = (iqr_ind - mean(iqr_ind))/sd(iqr_ind)
-         , polarization_index = (sd_ind - mean(sd_ind))/sd(sd_ind))
+  , `:=`(polarization_index_IQR = (iqr_ind - mean(iqr_ind))/sd(iqr_ind))
 ][
-  , `:=`(polarization_index_IQR_shifted = polarization_index_IQR - min(polarization_index_IQR)
-         , polarization_index_shifted = polarization_index - min(polarization_index))
+  , `:=`(polarization_index_IQR_shifted = polarization_index_IQR - min(polarization_index_IQR))
 ]
 
 lev_lev_plot = post_polar %>% 
