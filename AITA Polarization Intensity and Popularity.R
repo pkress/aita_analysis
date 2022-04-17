@@ -5,6 +5,7 @@
 #' output:
 #'    pdf_document:
 #'       toc: true
+#'       number_sections: true
 #' always_allow_html: yes  
 #' ---
 ##################)
@@ -14,7 +15,7 @@
 ##################)
 
 
-#' # Is Polarization Popular on AITA?
+#' # Introduction: Is Polarization Popular on AITA?
 #' 
 #' I examined the top comments from top AITA subreddit posts from 2018-2019 
 #' to explore whether
@@ -31,7 +32,8 @@
 #' * Determining if more polarizing posts more popular
 #' 
 #' We also determine basic descriptive facts about the top posts, which were 
-#' used to inform the data cleaning process. 
+#' used to inform and check the data cleaning process. 
+#' These are reported in the appendix.
 #' 
 
 #' 
@@ -48,10 +50,10 @@
 #' 
 #' * Post balance is not very correlated with either score or number of comments
 #' 
-#' * Comment verbal polarization is correlated with 
+#' * Post comment polarization is correlated with 
 #' both post score and number of comments
 #' 
-#' * Comment voting polarization is not correlated with score, but is correlated
+#' * Post voting polarization is not correlated with score, but is correlated
 #' with the number of comments. 
 #' 
 #' 
@@ -101,117 +103,117 @@ clean_labs = function(ggp){
 # Read in Data ----
 ##################)
 #+ include = F
-# posts = fread("~/Documents/Personal Projects/AITA/data/intermediate/top_1_300_posts.csv")
-# comments = fread("~/Documents/Personal Projects/AITA/data/intermediate/top_1_300_posts_top_50_comments.csv")
-# 
-# ##################)
-# # Clean Data ----
-# ##################)
-# #+ include = F
-# ## Clean Post data ----
-# post_cln = posts[## Select Columns
-#   , mget(c("id", "created", "author"
-#            , "title", "selftext", "link_flair_text"
-#            , "score", "num_comments"))
-#   ][## Clean data
-#   , `:=`(selftext=iconv(selftext, from = "ISO-8859-1", to = "UTF-8")
-#          , created = as.POSIXct(created, origin = "1970-01-01", tz="UTC")
-#          , link_flair_text = fifelse(link_flair_text=="Asshole", "A-hole"
-#                                      , link_flair_text))
-#   ][## Drop deleted Posts
-#   !selftext%in%c("[removed]", "[deleted]")
-#   ]
-# 
-# ## Clean Comment data ----
-# comment_cln = comments[## Select Columns
-#   , mget(c("parent_id", "id", "created", "author"
-#            , "body", "controversiality", "is_submitter"
-#            , "score", "reply_count"))
-#   ][## Clean data
-#     , `:=`(body=iconv(body, from = "ISO-8859-1", to = "UTF-8")
-#            , created = as.POSIXct(created, origin = "1970-01-01", tz="UTC")
-#            , parent_id = str_sub(parent_id, 4L, -1L))
-#   ][## Drop deleted comments
-#   !body%in%c("[removed]", "[deleted]")
-#   ][## Add NTA/YTA/ESH/NAH flags
-#   , comment_result := fifelse(
-#     substr(body_comment, 1, 3)%in%c("NTA", "YTA", "ESH", "NAH")
-#     , body_comment, "no_result")
-#   ] %>%
-#   setnames(c("id", "id_comment", "created_comment", "author_comment"
-#              , "body_comment", "controversiality_comment", "is_submitter_comment"
-#              , "score_comment", "reply_count_comment"))
-# 
-# 
-# ## Add Sentiment ----
-# ## Get sentiment
-# post_sentiment = str_replace_all(post_cln$selftext, c('\"\"'="'")) %>%
-#   get_nrc_sentiment()
-# post_words = str_replace_all(post_cln$selftext, c('\"\"'="'")) %>%
-#   str_count(" ") %>%
-#   data.table(words = .) %>%
-#   .[, words:=words + 1]
-# post_sentiment_dt = cbind(post_cln[, .(id)]
-#                           , post_sentiment
-#                           , post_words) %>%
-#   setDT()
-# 
-# ## Add intensity and balance
-# post_sentiment_dt[
-#   , `:=`(intensity = rowSums(.SD)/words
-#          , balance = positive/(negative + positive))
-#   , .SDcols = -c("id", "positive", "negative", "words")
-# ]
-# 
-# ## Merge to post data
-# post_cln[## Add all columns from sentiment data not in post data
-#   post_sentiment_dt
-#   , setdiff(names(post_sentiment_dt), names(post_cln)):=
-#     mget("i."%p%setdiff(names(post_sentiment_dt), names(post_cln)))
-#   , on = intersect(names(post_sentiment_dt), names(post_cln))
-# ]
-# 
-# 
-# ## Get sentiment
-# comment_sentiment = str_replace_all(comment_cln$body_comment, c('\"\"'="'")) %>%
-#   get_nrc_sentiment()
-# comment_words = str_replace_all(comment_cln$body_comment, c('\"\"'="'")) %>%
-#   str_count(" ") %>%
-#   data.table(words = .) %>%
-#   .[, words:=words + 1]
-# 
-# comment_sentiment_dt = cbind(comment_cln[, .(id = id_comment)]
-#                              , comment_sentiment
-#                              , comment_words)%>%
-#   setDT()
-# 
-# ## Add intensity and balance
-# comment_sentiment_dt[
-#   , `:=`(intensity = rowSums(.SD)/words
-#          , balance = positive/(negative + positive))
-#   , .SDcols = -c("id", "positive", "negative", "words")
-#   ]%>%
-#   setnames(names(.), names(.)%p%"_comment")
-# 
-# ## Merge to Comment data
-# comment_cln[## Add all columns from sentiment data not in comment data
-#   comment_sentiment_dt
-#   , setdiff(names(comment_sentiment_dt), names(comment_cln)):=
-#     mget("i."%p%setdiff(names(comment_sentiment_dt), names(comment_cln)))
-#   , on = intersect(names(comment_sentiment_dt), names(comment_cln))
-# ]
-# 
-# ## Merge data ----
-# top_posts = post_cln[
-#   comment_cln
-#   , on = c("id")
-# ]
-# 
-# 
-# ## Save Data ----
-# fwrite(post_cln, "data/intermediate/posts_cln.csv")
-# fwrite(comment_cln, "data/intermediate/comments_cln.csv")
-# fwrite(top_posts, "data/intermediate/merged_comments_and_posts_cln.csv")
+posts = fread("~/Documents/Personal Projects/AITA/data/intermediate/top_1_300_posts.csv")
+comments = fread("~/Documents/Personal Projects/AITA/data/intermediate/top_1_300_posts_top_50_comments.csv")
+
+##################)
+# Clean Data ----
+##################)
+#+ include = F
+## Clean Post data ----
+post_cln = posts[## Select Columns
+  , mget(c("id", "created", "author"
+           , "title", "selftext", "link_flair_text"
+           , "score", "num_comments"))
+  ][## Clean data
+  , `:=`(selftext=iconv(selftext, from = "ISO-8859-1", to = "UTF-8")
+         , created = as.POSIXct(created, origin = "1970-01-01", tz="UTC")
+         , link_flair_text = fifelse(link_flair_text=="Asshole", "A-hole"
+                                     , link_flair_text))
+  ][## Drop deleted Posts
+  !selftext%in%c("[removed]", "[deleted]")
+  ]
+
+## Clean Comment data ----
+comment_cln = comments[## Select Columns
+  , mget(c("parent_id", "id", "created", "author"
+           , "body", "controversiality", "is_submitter"
+           , "score", "reply_count"))
+  ][## Clean data
+    , `:=`(body=iconv(body, from = "ISO-8859-1", to = "UTF-8")
+           , created = as.POSIXct(created, origin = "1970-01-01", tz="UTC")
+           , parent_id = str_sub(parent_id, 4L, -1L))
+  ][## Drop deleted comments
+  !body%in%c("[removed]", "[deleted]")
+  ][## Add NTA/YTA/ESH/NAH flags
+  , comment_result := fifelse(
+    substr(body_comment, 1, 3)%in%c("NTA", "YTA", "ESH", "NAH")
+    , body_comment, "no_result")
+  ] %>%
+  setnames(c("id", "id_comment", "created_comment", "author_comment"
+             , "body_comment", "controversiality_comment", "is_submitter_comment"
+             , "score_comment", "reply_count_comment"))
+
+
+## Add Sentiment ----
+## Get sentiment
+post_sentiment = str_replace_all(post_cln$selftext, c('\"\"'="'")) %>%
+  get_nrc_sentiment()
+post_words = str_replace_all(post_cln$selftext, c('\"\"'="'")) %>%
+  str_count(" ") %>%
+  data.table(words = .) %>%
+  .[, words:=words + 1]
+post_sentiment_dt = cbind(post_cln[, .(id)]
+                          , post_sentiment
+                          , post_words) %>%
+  setDT()
+
+## Add intensity and balance
+post_sentiment_dt[
+  , `:=`(intensity = rowSums(.SD)/words
+         , balance = positive/(negative + positive))
+  , .SDcols = -c("id", "positive", "negative", "words")
+]
+
+## Merge to post data
+post_cln[## Add all columns from sentiment data not in post data
+  post_sentiment_dt
+  , setdiff(names(post_sentiment_dt), names(post_cln)):=
+    mget("i."%p%setdiff(names(post_sentiment_dt), names(post_cln)))
+  , on = intersect(names(post_sentiment_dt), names(post_cln))
+]
+
+
+## Get sentiment
+comment_sentiment = str_replace_all(comment_cln$body_comment, c('\"\"'="'")) %>%
+  get_nrc_sentiment()
+comment_words = str_replace_all(comment_cln$body_comment, c('\"\"'="'")) %>%
+  str_count(" ") %>%
+  data.table(words = .) %>%
+  .[, words:=words + 1]
+
+comment_sentiment_dt = cbind(comment_cln[, .(id = id_comment)]
+                             , comment_sentiment
+                             , comment_words)%>%
+  setDT()
+
+## Add intensity and balance
+comment_sentiment_dt[
+  , `:=`(intensity = rowSums(.SD)/words
+         , balance = positive/(negative + positive))
+  , .SDcols = -c("id", "positive", "negative", "words")
+  ]%>%
+  setnames(names(.), names(.)%p%"_comment")
+
+## Merge to Comment data
+comment_cln[## Add all columns from sentiment data not in comment data
+  comment_sentiment_dt
+  , setdiff(names(comment_sentiment_dt), names(comment_cln)):=
+    mget("i."%p%setdiff(names(comment_sentiment_dt), names(comment_cln)))
+  , on = intersect(names(comment_sentiment_dt), names(comment_cln))
+]
+
+## Merge data ----
+top_posts = post_cln[
+  comment_cln
+  , on = c("id")
+]
+
+
+## Save Data ----
+fwrite(post_cln, "data/intermediate/posts_cln.csv")
+fwrite(comment_cln, "data/intermediate/comments_cln.csv")
+fwrite(top_posts, "data/intermediate/merged_comments_and_posts_cln.csv")
 
 ## Load Saved Data ----
 post_cln = fread("~/Documents/Personal Projects/AITA/data/intermediate/posts_cln.csv")
@@ -372,23 +374,23 @@ fixest::etable(lev_lev)
 #' on AITA, which gives some indication into whether the most engaging posts are 
 #' divisive. 
 #' 
-#' We measure polarization in two ways: emotional polarization of comments and
+#' We measure polarization in two ways: comment polarization of comments and
 #' voting breakdowns of comments. 
 #'  
 
-## Emotional Polarization ----
-#' ## Emotional Polarization and Popularity
+## Comment Polarization ----
+#' ## Comment Polarization and Popularity
 #' 
 #' We construct a normalized index of polarization for each post based 
 #' on intensity and balance of its comments. 
 #' A post is highly polarized if there are many intense 
-#' comments that disagree in terms of balance. We capture this polarity using 
+#' comments that disagree in terms of balance. We capture this Polarization using 
 #' standard deviation of the product of intensity and polarization. 
 #' 
-#' We see some association between polarity and score. However, repeating the same analysis with number of comments at the 
+#' We see some association between Polarization and score. However, repeating the same analysis with number of comments at the 
 #' measure of popularity indicates that more comments are negatively associated
-#' with polarity. This suggests that comments are a confounder for the effect of 
-#' polarity on popularity. Conditioning on comments, we see that polarity is 
+#' with polarization. This suggests that comments are a confounder for the effect of 
+#' Polarization on popularity. Conditioning on comments, we see that Polarization is 
 #' strongly associated with higher scores. 
 #' 
 #' Since standard deviation may be affected by outliers and sample sizes we
@@ -406,26 +408,25 @@ post_polar = top_posts[
       , num_comments = first(num_comments))
   , .(id, selftext, intensity, balance)
   ][
-  , `:=`(polarity_index_IQR = (iqr_ind - mean(iqr_ind))/sd(iqr_ind)
-         , polarity_index = (sd_ind - mean(sd_ind))/sd(sd_ind))
+  , `:=`(polarization_index_IQR = (iqr_ind - mean(iqr_ind))/sd(iqr_ind)
+         , polarization_index = (sd_ind - mean(sd_ind))/sd(sd_ind))
   ][
-  , `:=`(polarity_index_IQR_shifted = polarity_index_IQR - min(polarity_index_IQR)
-         , polarity_index_shifted = polarity_index - min(polarity_index))
+  , `:=`(polarization_index_IQR_shifted = polarization_index_IQR - min(polarization_index_IQR)
+         , polarization_index_shifted = polarization_index - min(polarization_index))
   ]
 
 lev_lev_plot = post_polar %>% 
   ggplot()+
-  geom_point(aes(x = polarity_index,y=score))+
-  geom_smooth(aes(x = polarity_index,y=score), method = "lm")+
+  geom_point(aes(x = polarization_index,y=score))+
+  geom_smooth(aes(x = polarization_index,y=score), method = "lm")+
   theme_bw()+
-  labs(x = "Polarity", y = "Post Score"
-       , title = "Comparison of Post Comments Polarity and Popularity"
+  labs(x = "Comment Polarization", y = "Post Score"
+       , title = "Comparison of Comments Polarization and Popularity"
 
        , caption = "Source: Scraped r/AITA data.")
 
 lev_lev = post_polar %>% 
-  fixest::feols(score~polarity_index)
-#' ### Results of Polarity on Score
+  fixest::feols(score~polarization_index)
 #+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
 lev_lev_plot
 fixest::etable(lev_lev)
@@ -434,27 +435,26 @@ fixest::etable(lev_lev)
 #+ include = F
 lev_lev_plot = post_polar %>% 
   ggplot()+
-  geom_point(aes(x = polarity_index,y=num_comments))+
-  geom_smooth(aes(x = polarity_index,y=num_comments), method = "lm")+
+  geom_point(aes(x = polarization_index,y=num_comments))+
+  geom_smooth(aes(x = polarization_index,y=num_comments), method = "lm")+
   theme_bw()+
-  labs(x = "Polarity", y = "Post Comments"
-       , title = "Comparison of Post Comments Polarity and Popularity"
+  labs(x = "Comment Polarization", y = "Post Comments"
+       , title = "Comparison of Comments Polarization and Popularity"
 
        , caption = "Source: Scraped r/AITA data.")
 
 lev_lev = post_polar %>% 
-  fixest::feols(num_comments~polarity_index)
+  fixest::feols(num_comments~polarization_index)
 
-#' ### Results of Polarity on Number of Comments
 #+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
 lev_lev_plot
 fixest::etable(lev_lev)
 
 #+ include = F
 lev_lev = post_polar %>% 
-  fixest::feols(score~polarity_index+num_comments)
+  fixest::feols(score~polarization_index+num_comments)
 
-#' ### Results of Polarity on Score, Controlling for Number of Comments
+#+ include = T, echo = F, message = F
 fixest::etable(lev_lev)
 
 
@@ -463,11 +463,15 @@ fixest::etable(lev_lev)
 #' 
 #' We construct an index of polarization for each post based 
 #' on the share of votes that are NTA or YTA.
-#' A post is highly polarized if there are many votes that disagree. 
+#' A post is highly polarized if the share of YTA votes is near 50%, and is 
+#' not polarized if the share of YTA votes is near 100 or 0 percent. This is 
+#' rescaled to a 0-1 scale with 0 being low polarization and 1 being high 
+#' polarization.
 #' 
-#' Work in Progress...
-#' 
-#' Measure based on aggreement and YTA
+#' We see no clear association between polarization and score. However, 
+#' we observe that more comments are positively associated
+#' with voting polarization. When including comments as a control, there remains
+#' no clear associate between voting polarization and score. 
 #' 
 #+ include = F
 
@@ -480,8 +484,8 @@ post_polar_vote = top_posts[
   , .(id, selftext, intensity, balance)
 ][## yta share of yta and nta votes
   , share_split := (yta_count/(yta_count + nta_count))
-][## Want 0 and 1 as low polarization
-  , vote_polarization:=abs(abs(share_split - 0.5) - 0.5)
+][## Want 0 and 1 as low polarization, and then rescale to new 0-1 scale
+  , vote_polarization:=abs(abs(share_split - 0.5) - 0.5)/0.5
 ]
 
 lev_lev_plot = post_polar_vote %>% 
@@ -489,14 +493,14 @@ lev_lev_plot = post_polar_vote %>%
   geom_point(aes(x = vote_polarization,y=score))+
   geom_smooth(aes(x = vote_polarization,y=score), method = "lm")+
   theme_bw()+
-  labs(x = "Voting Polarity", y = "Post Score"
-       , title = "Comparison of Post Comments Polarity and Popularity"
+  labs(x = "Voting Polarization", y = "Post Score"
+       , title = "Comparison of Vote Polarization and Popularity"
 
        , caption = "Source: Scraped r/AITA data.")
 
 lev_lev = post_polar_vote %>% 
   fixest::feols(score~vote_polarization)
-#' ### Results of Polarity on Score
+
 #+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
 lev_lev_plot
 fixest::etable(lev_lev)
@@ -507,15 +511,14 @@ lev_lev_plot = post_polar_vote %>%
   geom_point(aes(x = vote_polarization,y=num_comments))+
   geom_smooth(aes(x = vote_polarization,y=num_comments), method = "lm")+
   theme_bw()+
-  labs(x = "Voting Polarity", y = "Post Comments"
-       , title = "Comparison of Post Comments Polarity and Popularity"
+  labs(x = "Voting Polarization", y = "Post Comments"
+       , title = "Comparison of Comments Polarization and Popularity"
 
        , caption = "Source: Scraped r/AITA data.")
 
 lev_lev = post_polar_vote %>% 
   fixest::feols(num_comments~vote_polarization)
 
-#' ### Results of Polarity on Score
 #+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
 lev_lev_plot
 fixest::etable(lev_lev)
@@ -524,15 +527,18 @@ fixest::etable(lev_lev)
 lev_lev = post_polar_vote %>% 
   fixest::feols(score~vote_polarization+num_comments)
 
-#' ### Results of Polarity on Score, Controlling for Number of Comments
+#+ include = T, echo = F, warning = F
 fixest::etable(lev_lev)
 
 
 ##################)
-# Basic Descriptive Facts ----
+# Appendix ----
 ##################)
+#' # Appendix
+#+ include = F
+## Basic Descriptive Facts ----
 
-#' # Basic Descriptive Facts
+#' ## Basic Descriptive Facts
 #' 
 #' We want to explore the overall distributions of the key variables in this 
 #' analysis, and confirm that the data adhere to our expectations. We focus this
@@ -556,7 +562,7 @@ fixest::etable(lev_lev)
 #' 0.5, indicating that there are as many positive words as there are negative
 #' words. 
 #' 
-#' ## Overall
+#' ### Overall
 #' 
 #' First, we consider the data posts overall by checking if censoring over time 
 #' is a big driver of comment counts or 
@@ -593,7 +599,7 @@ post_cln %>%
        , caption = "Source: Scraped r/AITA data.")+
   theme_bw()
 
-#' ## Distributions of key variables in Posts
+#' ### Distributions of key variables in Posts
 #' 
 #' We consider the distributions of post comments, score, intensity and balance
 #' to identify outliers or observations that should be dropped. 
@@ -693,7 +699,7 @@ post_cln%>%
   theme_bw()
 
 
-#' ## Distributions of key variables in Comments
+#' ### Distributions of key variables in Comments
 #' 
 #' We consider the distribution of comment replies, score, intensity and balance
 #' to identify outliers or observations that should be dropped. 
@@ -801,13 +807,28 @@ comment_cln%>%
   theme_bw()
 
 
+## Comment Polarization Robustness ----
+#' ## Comment Polarization Robustness
 
-##################)
-# Appendix ----
-##################)
-#' # Appendix
-## Emotional Polarity Robustness ----
-#' ## Emotional Polarity Robustness
+#' We consider two robustness checks for the estimates for comment polarization
+#' on popularity. 
+#' 
+#' The first is to limit the posts used to calculate the
+#' sentiment standard deviation to the inner 90% of comments. Thus, 
+#' strong negative comments and
+#' strong postive comments are dropped from the polariztion measure. We still
+#' observe largely similar results: slight positive assocaition with score, 
+#' a negative association with comments, and a larger positive association with
+#' score when controlling for comments. 
+#' 
+#' The second is to use IQR instead of standard deviation to measure polarization.
+#' Again, we see similar estimates using IQR instead of SD. 
+#' 
+#' In both robustness checks, the relationship is less strong, but is still 
+#' significant at the 5% level when using comments as a control variable. 
+#' 
+
+#' ### Inner 90% Estimates
 
 #+ include = F
 post_polar = top_posts[
@@ -822,53 +843,54 @@ post_polar = top_posts[
       , num_comments = first(num_comments))
   , .(id, selftext, intensity, balance)
 ][
-  , `:=`(polarity_index_IQR = (iqr_ind - mean(iqr_ind))/sd(iqr_ind)
-         , polarity_index = (sd_ind - mean(sd_ind))/sd(sd_ind))
+  , `:=`(polarization_index_IQR = (iqr_ind - mean(iqr_ind))/sd(iqr_ind)
+         , polarization_index = (sd_ind - mean(sd_ind))/sd(sd_ind))
 ][
-  , `:=`(polarity_index_IQR_shifted = polarity_index_IQR - min(polarity_index_IQR)
-         , polarity_index_shifted = polarity_index - min(polarity_index))
+  , `:=`(polarization_index_IQR_shifted = polarization_index_IQR - min(polarization_index_IQR)
+         , polarization_index_shifted = polarization_index - min(polarization_index))
 ]
 
 lev_lev_plot = post_polar %>% 
   ggplot()+
-  geom_point(aes(x = polarity_index,y=score))+
-  geom_smooth(aes(x = polarity_index,y=score), method = "lm")+
+  geom_point(aes(x = polarization_index,y=score))+
+  geom_smooth(aes(x = polarization_index,y=score), method = "lm")+
   theme_bw()+
-  labs(x = "Polarity", y = "Post Score"
-       , title = "Comparison of Post Comments Polarity and Popularity"
+  labs(x = "Polarization", y = "Post Score"
+       , title = "Inner 90%: Comparison of Comments Polarization and Popularity"
        , caption = "Source: Scraped r/AITA data.")
 
 lev_lev = post_polar %>% 
-  fixest::feols(score~polarity_index)
-#' ### Results of Polarity on Score
+  fixest::feols(score~polarization_index)
+
 #+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
 lev_lev_plot
 fixest::etable(lev_lev)
-
 
 #+ include = F
 lev_lev_plot = post_polar %>% 
   ggplot()+
-  geom_point(aes(x = polarity_index,y=num_comments))+
-  geom_smooth(aes(x = polarity_index,y=num_comments), method = "lm")+
+  geom_point(aes(x = polarization_index,y=num_comments))+
+  geom_smooth(aes(x = polarization_index,y=num_comments), method = "lm")+
   theme_bw()+
-  labs(x = "Polarity", y = "Post Comments"
-       , title = "Comparison of Post Comments Polarity and Popularity"
+  labs(x = "Polarization", y = "Post Comments"
+       , title = "Inner 90%: Comparison of Comments Polarization and Popularity"
        , caption = "Source: Scraped r/AITA data.")
 
 lev_lev = post_polar %>% 
-  fixest::feols(num_comments~polarity_index)
-#' ### Results of Polarity on Number of Comments
+  fixest::feols(num_comments~polarization_index)
+#' ### Results of Polarization on Number of Comments
 #+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
 lev_lev_plot
 fixest::etable(lev_lev)
 
 #+ include = F
 lev_lev = post_polar %>% 
-  fixest::feols(score~polarity_index+num_comments)
+  fixest::feols(score~polarization_index+num_comments)
 
-#' ### Results of Polarity on Score, Controlling for Number of Comments
+#+ include = T, echo = F, warning = F
 fixest::etable(lev_lev)
+
+#' ### IQR Estimates
 
 #+ include = F
 post_polar = top_posts[
@@ -883,25 +905,25 @@ post_polar = top_posts[
       , num_comments = first(num_comments))
   , .(id, selftext, intensity, balance)
 ][
-  , `:=`(polarity_index_IQR = (iqr_ind - mean(iqr_ind))/sd(iqr_ind)
-         , polarity_index = (sd_ind - mean(sd_ind))/sd(sd_ind))
+  , `:=`(polarization_index_IQR = (iqr_ind - mean(iqr_ind))/sd(iqr_ind)
+         , polarization_index = (sd_ind - mean(sd_ind))/sd(sd_ind))
 ][
-  , `:=`(polarity_index_IQR_shifted = polarity_index_IQR - min(polarity_index_IQR)
-         , polarity_index_shifted = polarity_index - min(polarity_index))
+  , `:=`(polarization_index_IQR_shifted = polarization_index_IQR - min(polarization_index_IQR)
+         , polarization_index_shifted = polarization_index - min(polarization_index))
 ]
 
 lev_lev_plot = post_polar %>% 
   ggplot()+
-  geom_point(aes(x = polarity_index_IQR,y=score))+
-  geom_smooth(aes(x = polarity_index_IQR,y=score), method = "lm")+
+  geom_point(aes(x = polarization_index_IQR,y=score))+
+  geom_smooth(aes(x = polarization_index_IQR,y=score), method = "lm")+
   theme_bw()+
-  labs(x = "Polarity", y = "Post Score"
-       , title = "Comparison of Post Comments Polarity and Popularity"
+  labs(x = "Polarization", y = "Post Score"
+       , title = "IQR: Comparison of Comments Polarization and Popularity"
        , caption = "Source: Scraped r/AITA data.")
 
 lev_lev = post_polar %>% 
-  fixest::feols(score~polarity_index_IQR)
-#' ### Results of Polarity on Score
+  fixest::feols(score~polarization_index_IQR)
+
 #+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
 lev_lev_plot
 fixest::etable(lev_lev)
@@ -910,24 +932,24 @@ fixest::etable(lev_lev)
 #+ include = F
 lev_lev_plot = post_polar %>% 
   ggplot()+
-  geom_point(aes(x = polarity_index_IQR,y=num_comments))+
-  geom_smooth(aes(x = polarity_index_IQR,y=num_comments), method = "lm")+
+  geom_point(aes(x = polarization_index_IQR,y=num_comments))+
+  geom_smooth(aes(x = polarization_index_IQR,y=num_comments), method = "lm")+
   theme_bw()+
-  labs(x = "Polarity", y = "Post Comments"
-       , title = "Comparison of Post Comments Polarity and Popularity"
+  labs(x = "Polarization", y = "Post Comments"
+       , title = "IQR: Comparison of Comments Polarization and Popularity"
        , caption = "Source: Scraped r/AITA data.")
 
 lev_lev = post_polar %>% 
-  fixest::feols(num_comments~polarity_index_IQR)
-#' ### Results of Polarity on Number of Comments
+  fixest::feols(num_comments~polarization_index_IQR)
+
 #+ include = T, message=F, warning=F, echo = F, fig.height = 4, fig.width = 6
 lev_lev_plot
 fixest::etable(lev_lev)
 
 #+ include = F
 lev_lev = post_polar %>% 
-  fixest::feols(score~polarity_index_IQR+num_comments)
+  fixest::feols(score~polarization_index_IQR+num_comments)
 
-#' ### Results of Polarity on Score, Controlling for Number of Comments
+#+ include = T, echo = F, warning = F
 fixest::etable(lev_lev)
 
